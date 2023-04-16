@@ -1,12 +1,11 @@
-import { UpstashRedisAdapter } from '@next-auth/upstash-redis-adapter';
+import { db } from '@/lib/db';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
-import { db } from './db';
 
-function getGoogleCredentials() {
+function getGoogleCredentials(): { clientId: string; clientSecret: string } {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
   if (!clientId || clientId.length === 0) {
     throw new Error('Missing GOOGLE_CLIENT_ID');
   }
@@ -19,11 +18,10 @@ function getGoogleCredentials() {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: UpstashRedisAdapter(db),
+  adapter: PrismaAdapter(db),
   session: {
     strategy: 'jwt',
   },
-
   pages: {
     signIn: '/login',
   },
@@ -33,30 +31,8 @@ export const authOptions: NextAuthOptions = {
       clientSecret: getGoogleCredentials().clientSecret,
     }),
   ],
-  /* callbacks: {
-    async jwt({ token, user }) {
-      const dbUserResult = (await fetchRedis('get', `user:${token.id}`)) as
-        | string
-        | null;
-
-      if (!dbUserResult) {
-        if (user) {
-          token.id = user!.id;
-        }
-
-        return token;
-      }
-
-      const dbUser = JSON.parse(dbUserResult) as User;
-
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-      };
-    },
-    async session({ session, token }) {
+  callbacks: {
+    async session({ token, session }) {
       if (token) {
         session.user.id = token.id;
         session.user.name = token.name;
@@ -66,8 +42,27 @@ export const authOptions: NextAuthOptions = {
 
       return session;
     },
+    async jwt({ token, user }) {
+      const dbUser = await db.user.findFirst({
+        where: {
+          email: token.email,
+        },
+      });
+
+      if (!dbUser) {
+        token.id = user!.id;
+        return token;
+      }
+
+      return {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        picture: dbUser.image,
+      };
+    },
     redirect() {
       return '/dashboard';
     },
-  }, */
+  },
 };
