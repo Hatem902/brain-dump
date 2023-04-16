@@ -24,8 +24,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -43,14 +42,19 @@ model User {
   name          String?
   email         String?   @unique
   emailVerified DateTime?
-
- 
-  image    String?
-  accounts Account[]
-  sessions Session[]
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  ideas         Idea[]
 }
 
-
+model Idea {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+}
 
 model VerificationToken {
   identifier String
